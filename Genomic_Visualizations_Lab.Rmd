@@ -1,0 +1,403 @@
+---
+title: "Genomic Data Visualizations Lab"
+---
+
+##Example 1: Manhattan Plot
+***
+####A manhattan plot is used to display the locations across the chromosomes
+####where there is a statistically significant difference between genetic 
+####variants in the disease samples compared to normal (i.e., case-control study).
+***
+####We are going to use the qqman package by Stephen Turner.
+####This package includes functions for creating manhattan plots from GWAS results.
+***
+####This example is from:
+####https://cran.r-project.org/web/packages/qqman/vignettes/qqman.html
+####http://www.gettinggeneticsdone.com/2014/05/qqman-r-package-for-qq-and-manhattan-plots-for-gwas-results.html
+***
+####Package citation:
+####Turner, S.D. qqman: an R package for visualizing GWAS results using Q-Q 
+####and manhattan plots. biorXiv DOI: 10.1101/005165 (2014).
+***
+
+```{r install and load library, message=FALSE}
+#install the qqman package
+#only do this once, the first time you install
+#install.packages("qqman")
+
+#load the package after it is installed
+#run this command every time you start a new R session
+library(qqman)
+```
+
+```{r simulated GWAS data}
+#simulated data is available within the package
+#for 16,470 SNPs on 22 chromosomes
+#this data is in a data frame named gwasResults
+
+#let's look at the simulated data using the structure function
+str(gwasResults)
+#we have 16,470 observations for 4 variables:
+### SNP = SNP name, character variable (chr)
+### CHR = Chromosome number, integar variable (int)
+### BP  = Base pair position of SNP on chromosome, integar variables (int)
+### P   = Association p-value for each SNP
+```
+
+```{r view head and tail}
+#we can view the entire data frame using View(gwasResults),
+#however, because this data frame is large, lets look at
+#the first and last few rows using "head" and "tail"
+head(gwasResults)
+tail(gwasResults)
+```
+
+```{r SNPs per chromosome}
+#let's explore our data a little further and see
+#how many SNPs on each chromosome
+#this command says make a table of the number of entries by chromosome
+#and then organize it as a data frame
+as.data.frame(table(gwasResults$CHR))
+#you'll see that the number of entries decreases as the chromosome number increases
+#this is because the 22 autosomes are organized by decreasing size
+```
+
+```{r p-values meeting threshold}
+#let's find p-values that remain signficiant with a Bonferroni correction
+#p-threshold = alpha/n = 0.05/16,470 = 0.0000030
+#this command says, show me the subset of for the data frame that meets
+#the condition p<0.000003
+subset(gwasResults, P<0.000003)
+#we see a number of SNPs on chromosome 3 that meet this p-value threshold cutoff
+```
+
+```{r manhattan plot}
+#let's make a basic manhattan plot
+manhattan(gwasResults)
+#we can see the expected tower for the SNPs within chromosome 3
+#expect the strongest associations to form neat peaks where nearby 
+#correlated SNPs all show the same signal
+#blue line = suggestive line = -log10(1e-5) = 0.00001
+#red line = genome-wide significant line = -log10(5e-8) = 0.00000005
+```
+
+```{r change parameters on manhattan plot}
+#add a title to the plot
+#reduce the point size to 50%
+#reduce the font size on the axis labels to 80%
+#change the color by chromosome
+#remove the suggestive significance line
+manhattan(gwasResults, 
+          main = "Manhattan Plot", 
+          cex = 0.5, 
+          cex.axis = 0.8,
+          col = rainbow(11),
+          suggestiveline = FALSE)
+```
+
+```{r add annotation}
+#let's add annotation for the top SNP per chromosome
+#that meet a p<0.01 threshold
+manhattan(gwasResults,
+          main = "Manhattan Plot",
+          col = rainbow(11),
+          suggestiveline = FALSE,
+          annotatePval = 0.01)
+```
+
+```{r highlight SNPs that survive Bonferroni correction}
+#let's highlight the SNPs that survive the Bonferroni correction
+#first, we will create a variable defining those SNPs
+Subset <- as.vector(subset(gwasResults, P<0.000003))
+keeps <- c("SNP")
+BonferroniSNPs <- as.list(Subset[keeps])
+BonferroniSNPs
+BonferroniSNPsOfInterest <- c("rs3035", "rs3037", "rs3038", "rs3039", "rs3040", "rs3041", "rs3042", "rs3043", "rs3044", "rs3045", "rs3046", "rs3047", "rs3048", "rs3049", "rs3050", "rs3051", "rs3052", "rs3053", "rs3054", "rs3055", "rs3056", "rs3057", "rs3058", "rs3059", "rs3060", "rs3061", "rs3062", "rs3063", "rs3064", "rs3065", "rs3066", "rs3068", "rs3070")
+
+#create a manhattan plot highlighting our SNPs of interest
+manhattan(gwasResults, highlight = BonferroniSNPsOfInterest)
+```
+
+```{r manhattan plot for one chromosome}
+#let's create a manhattan plot for chromosome 3 with our SNPs of interest highlighted
+manhattan(subset(gwasResults, CHR == 3), 
+          main = "Chromosome 3",
+          suggestiveline = FALSE,
+          highlight = BonferroniSNPsOfInterest)
+```
+
+```{r add annotation for the top SNP}
+#now let's annotate the top hit
+manhattan(subset(gwasResults, CHR == 3), 
+          main = "Chromosome 3",
+          suggestiveline = FALSE,
+          highlight = BonferroniSNPsOfInterest,
+          annotatePval = 0.00000005)
+```
+
+```{r add annotation for SNPs surviving the genome-wide threshold}
+#let's annotate all SNPs that survive the genome-wide significant line
+manhattan(subset(gwasResults, CHR == 3), 
+          main = "Chromosome 3",
+          suggestiveline = FALSE,
+          highlight = BonferroniSNPsOfInterest,
+          annotatePval = 0.00000005,
+          annotateTop = FALSE)
+```
+
+##Example 2: Heatmap
+***
+####A graphical representation of data where the individual values contained
+####in a matrix are represented as colors and shading used to identify 
+####difference in expersion level: patterns, areas of concentration, data variance
+***
+####We are going to use Bioconductor (which provides open source tools in R
+####for the analysis and comprehension of high throughput genomic data), 
+####the ALL experiment data package maintained by Robert Gentleman,
+####the limma package for data analysis and differential expression 
+####for microarray data maintained by Gordon Smyth, and the hgu95av2.db package
+####that has Affymetrix Human Genome U95 Set annotation data (chip hgu95av2)
+####created by Marc Carlson.
+***
+####The majority of this example is from:
+####https://warwick.ac.uk/fac/sci/moac/people/students/peter_cock/r/heatmap/
+***
+####Bioconductor citation:
+####Gentleman, R.C, et al. Bioconductor: open software development for computational biology
+####and bioinformatics. Genome Biology, 5, R80 DOI: 10.1186/gb-2004-5-10-r80 (2004).
+***
+####Original raw data citation:
+####Chiaretti, S., et al. Gene expression profile of adult T-cell acute lymphocytic 
+####leukemia identified subsets of patients with different response to therapy
+####and survival. Blood, 103(7), 2771-8 DOI: 10.1182/blood-2003-09-3243
+***
+####limma package citation:
+####Ritchie, M.E., et al. limma powers differential expression analyses for RNA-
+####sequencing and microarray studies. Nucleic Acids Research, 43(7), e47 (2015).
+***
+####Helpful resource for interpretation of results from the limma package:
+####https://kasperdanielhansen.github.io/genbioconductor/html/limma.html
+***
+####hgu95av2.db package citation:
+####Carlson M (2016). hgu95av2.db: Affymetrix Human Genome U95 Set annotation data 
+####(chip hgu95av2). R package version 3.2.3.
+***
+
+```{r install and load Bioconductor and ALL package, message=FALSE}
+#install bioconductor
+#only do this once, the first time you install
+#source("https://bioconductor.org/biocLite.R")
+#biocLite()
+
+#install the ALL, limma, and hgu95av2.db packages from bioconductor
+#biocLite(c("ALL", "limma", "hgu95av2.db"))
+
+#load the packages after they are installed
+#run this command every time you start a new R session
+library(ALL)
+library(limma)
+library(hgu95av2.db)
+```
+
+```{r ALL data}
+#data is available in the ALL package
+#for 12,625 gene expression levels for 128 patients with ALL
+#this data is in a data frame named ALL
+#lets load the data
+data("ALL")
+
+#let's take a look at the phenotype data using the structure function
+str(ALL@phenoData@data)
+#we can see that we have 128 observations for 21 variables
+
+#we can also view the entire dataset using the View function
+#View(ALL@phenoData@data)
+
+#some of the variable labels like sex and age are clear to interpret
+#but what about the other labels like BT or CR? we also determined the 
+#variable type (e.g., chr, logi, factor) from this information
+#let's return the variable labels
+ALL@phenoData@varMetadata[["labelDescription"]]
+#now we know what the different labels mean
+
+#let's take a look at the normalized expression data using 
+#the structure and View functions as well
+str(ALL@assayData[["exprs"]])
+#View(ALL@assayData[["exprs"]])
+#we see 128 columns for the samples and
+#12,625 rows for the gene expression levels
+```
+
+```{r look for BCR/ABL and ALL1/AF4 translocations}
+#let's look at the molecular biology results for the 128 samples
+as.data.frame(table(ALL$mol.biol))
+#excluding the NEG results, the majority of samples were classified as
+#having a translocation between chromosomes 9 and 22 (BCR/ABL), n=37, and
+#4 and 11 (ALL1/AF4), n=10
+
+#a chromosome translocation is caused by the rearrangement of parts
+#between nonhomologous chromosomes
+
+#let's look more closely at BCR/ABL as an example:
+#The BCR-ABL translocation is formed when pieces of chromosome 9 and 22
+#break off and trade places.  One the changes resulting from this 
+#switch contains part of the ABL gene from chromosome 9 fused to 
+#part of the BCR gene from chromosome 22.  The protein normally produced
+#by the ABL gene is a signaling molecule that controls cell proliferation
+#and usually must interact with other signaling molecules to be active.
+#However, Abl sginaling is always active in the protein produced by the
+#BCR-ABL fusion gene.  This activity promotes the continues proliferation
+#of large amounts of immature lymphocytes.
+```
+
+```{r limit to BCR/ABL and ALL1/AF4 translocations}
+#for this example, we will limit our data to these 2 subgroups
+subset <- ALL[, ALL$mol.biol %in% c("BCR/ABL", "ALL1/AF4")]
+#this command says, create a new data set called "subset"
+#from the data set ALL, keep all columns, but select rows where
+#mol.biol matches "BCR/ABL" or "ALL1/AF4"
+
+#let's check that we now have 47 samples in the phenotype data
+str(subset@phenoData@data)
+#we now have 47 observations for 21 variables in the dataframe
+```
+
+```{r create a heatmap}
+#let's create a heatmap with the first 100 genes
+heatmap(exprs(subset[1:100,]))
+#this visualization is not super informative
+#we are really interested in differentially expressed genes
+```
+
+```{r look at differential expression}
+#let's use the lmFit function from the limma package to look for
+#genes that are differentially expressed between the 2 groups
+#the lmFit function estimates the fold changes and standard errors
+#by fitting a linear model for each gene
+
+#first define what groups we want to compare
+comparegroups <- factor(as.character(subset$mol.biol))
+#keep in mind that ALL1/AF4 is the reference group
+
+#then define the design matrix with our groups of interest
+design <- model.matrix(~comparegroups)
+
+#finally process using the eBayes function to produce test statistics for each
+#gene - including t-statistics, p-values, and log-odds of differential expression
+fit <- eBayes(lmFit(subset,design))
+
+#let's see how mnay genes are upregulated and downregulated in the BCR/ABL
+#group compared to the ALL1/AF4 group
+summary(decideTests(fit))
+#328 downregulated
+#421 upregulated
+#11876 same
+```
+
+```{r top differentially expressed genes, message=FALSE}
+#let's obtain a list of the top genes differentially expressed between 
+#the 2 groups using the topTable function in the limma package
+topTable(fit, confint = TRUE)
+
+#the genes ranked by p-value in table by default
+
+#logFC = log fold change between the two groups 
+#AveExpr = log average expression
+#t = t statistic used to assess differential expression
+#P.Value = p-value for differential expression; not adjusted for multiple testing
+#adj.P.Val = p-value adjusted for multiple testing (Benjamini-Horchberg default)
+#B = log odds of differential expression
+
+#a fold change is a measure describing how much a quantity changes between 
+#two measurements; it is defined as the ratio between the two quantities
+
+#why do we use a log base 2 fold change? becuase you get a better scale:
+#centered around 0 and symmetrical rather than centered around 1 
+#and asymmetrical (downregulation 0-1, upregulated 1-infinity)
+#the interepretation is of the fold change is logFC=x, 2^x
+
+#Example interpretation - gene 1914_at is downregulated in patients with a 
+#BCR/ABL translocation compared to patients with a ALL1/AF4 translocation
+```
+
+```{r manual check, message=FALSE}
+#can we manually confirm that our interpretation is correct?
+#yes, we can look at the mean expression value for each group
+
+#compute the fold change for the top differentially expressed gene by group
+#the rownames function sets the row name
+#the tapply function applies a function to each cell
+topTable(fit, n=1)
+topgene1 <- rownames(topTable(fit, n=1))
+#this command says calculate the mean by subset using every column of 
+#data (patients) for the row that we defined as the topgene1
+groupMean <- tapply(exprs(subset)[topgene1,], subset$mol.biol, mean)
+groupMean
+#ALL1/AF4 = 7.033
+#BCR/ABL = 3.957
+
+#we can calculate the difference manually as well
+groupMean["ALL1/AF4"] - groupMean["BCR/ABL"]
+#3.076
+```
+
+```{r determining the actual genes affected}
+#but what if we want to know the actual gene symbols rather than just the
+#the manufacturer identifiers?
+
+#we can figure this out using the hgu95av2.db package
+#this package has annotations for the Affymetrix Human Genome U95 Set
+
+#hgu95av2SYMBOL is an R object that provides mappings between manufacturer 
+#identifiers and gene abbreviations
+map <- hgu95av2SYMBOL
+
+#this command says get the probe identifiers that are mapped to a gene symbol
+mapped_probes <- mappedkeys(map)
+
+#this command says convert to a list
+maplist <- as.list(map[mapped_probes])
+
+#let's get the gene symbols for 1914_at
+maplist["1914_at"]
+#CCNA1 - cyclin A1
+```
+
+```{r heatmap of top differentially expressed genes}
+#let's make a heatmap of the top differntially expressed genes
+#let's make a variable defining the top genes
+topgenes <- c("1914_at", "37809_at", "36873_at", "40763_at", "34210_at", 
+              "41448_at", "33358_at", "37978_at", "40480_s_at", "1307_at")
+
+#now let's make the heatmap
+heatmap(exprs(subset[topgenes,]))
+```
+
+```{r heatmap of top differentially expressed genes with group color}
+#let's add colored bars so we can easily distinguish between ALL1/AF4 and BCR/ABL patients
+#these commands define the colors: green = ALL1/AF4, blue = BCR/ABL
+color.map <- function(mol.biol) 
+            { if (mol.biol=="ALL1/AF4") "green" else "blue" }
+patientcolors <- unlist(lapply(subset$mol.bio, color.map))
+
+#create the heatmap with the color bars by group
+heatmap(exprs(subset[topgenes,]), ColSideColors=patientcolors)
+
+#red=downregulated
+#yellow=upregulated
+```
+
+```{r heatmap of values meeting threshold p-value}
+#let's make a heatmap with more genes meeting a cutoff p-value
+#use a p.adjust function to return p-values adjusted using the holm method
+selected  <- p.adjust(fit$p.value[, 2])<0.05
+subsetSel <- subset [selected, ]
+
+#let's see how many genes remain
+subsetSel
+#165 genes for the 47 samples
+
+#let's make the heatmap for these 165 genes
+heatmap(exprs(subsetSel), ColSideColors=patientcolors)
+```
+
