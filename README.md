@@ -7,7 +7,11 @@ October 26, 2018
 
 1. Download R and RStudio.
 
-    This tutorial by Michael Galarnyk is a nice outline for downloading both softwares.     https://medium.com/@GalarnykMichael/install-r-and-rstudio-on-mac-e911606ce4f4
+    This tutorial by Michael Galarnyk is a nice outline for downloading both softwares.
+    
+    Mac: https://medium.com/@GalarnykMichael/install-r-and-rstudio-on-mac-e911606ce4f4
+    
+    Windows: https://medium.com/@GalarnykMichael/install-r-and-rstudio-on-windows-5f503f708027
     
     Video to the accompanying link: https://www.youtube.com/watch?v=1PsPfMaLWSk
 
