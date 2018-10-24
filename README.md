@@ -11,4 +11,4 @@ October 26, 2018
     
     Video to the accompanying link: https://www.youtube.com/watch?v=1PsPfMaLWSk
 
-2. 
+2. file:///Users/dreisbachcn/Downloads/Genomic_Visualizations_Lab.html
